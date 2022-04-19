@@ -13,13 +13,14 @@ import (
 )
 
 var h dbHandler
+var lastID int64
 
 func init() {
 	cfg := mysql.Config{
-		User: "go",
+		User:   "go",
 		Passwd: "gopass",
-		Net: "tcp",
-		Addr: "127.0.0.1:3306",
+		Net:    "tcp",
+		Addr:   "127.0.0.1:3306",
 		DBName: "urls",
 	}
 	db, err := sql.Open("mysql", cfg.FormatDSN())
@@ -46,12 +47,15 @@ type dbHandler struct {
 func (h dbHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 	if params.Has("url") {
-		var full, short string
-		println("url =", params.Get("url"))
-		err := h.st.QueryRow(params.Get("url")).Scan(&full, &short)
-		println("full", full, "\nshort", short)
+		var full, short, url string
+		var id int
+		url = params.Get("url")
+		println("url =", url)
+		err := h.st.QueryRow(url).Scan(&id, &full, &short)
+		println("full", full, "short", short)
 		if err == sql.ErrNoRows {
 			println("creating new short url")
+			short = newURL(url)
 		} else if err != nil {
 			log.Fatal(err)
 		}
@@ -60,6 +64,37 @@ func (h dbHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		println("No url")
 	}
 	http.ServeFile(w, r, "index.html")
+}
+
+func newURL(full string) string {
+	// println("full", full, "lastID", lastID)
+	if lastID == 0 {
+		row := h.db.QueryRow("SELECT COUNT(*) FROM urls;")
+		err := row.Scan(&lastID)
+		if err != nil {
+			panic(err)
+		}
+	}
+	short := shorten(int(lastID + 1))
+	result, err := h.db.Exec("insert into urls (Full, Short) values (?, ?)", full, short)
+	if err != nil {
+		//TODO: check error
+		panic(err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if rows != 1 {
+		log.Fatalf("expected to affect 1 row, affected %d", rows)
+	}
+	lastID, err = result.LastInsertId()
+	if err != nil {
+		//TODO: check error
+		panic(err)
+	}
+	println("lastID new:", lastID)
+	return short
 }
 
 func main() {
