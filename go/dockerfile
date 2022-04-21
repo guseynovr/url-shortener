@@ -1,0 +1,8 @@
+FROM golang:1.18-alpine
+
+COPY . ./src
+RUN go mod download && go mod verify
+
+RUN go build -b -o ./bin/url_shortener
+
+CMD [ "url_shortener" ]

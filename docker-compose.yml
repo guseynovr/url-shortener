@@ -1,0 +1,25 @@
+version '3'
+
+services:
+    mysql:
+        image: mysql:debian
+        container_name: mysql
+        hostname: mysql
+        volumes:
+          - ./docker/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+        environment:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: urls
+          MYSQL_USER: go
+          MYSQL_PASSWORD: gopass
+        networks:
+          - inception-network
+        restart: always
+
+    go:
+      build: go
+      image: go
+      hostname: go
+      depends_on:
+        - mysql
+      restart: always
