@@ -2,22 +2,38 @@ version: '3'
 
 services:
     mysql:
-        image: mysql:debian
-        container_name: mysql
-        hostname: mysql
-        volumes:
-          - ./docker/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
-        environment:
-          MYSQL_ROOT_PASSWORD: rootpass
-          MYSQL_DATABASE: urls
-          MYSQL_USER: go
-          MYSQL_PASSWORD: gopass
-        restart: always
+      image: mysql:debian
+      container_name: mysql
+      hostname: mysql
+      volumes:
+        - ./mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+        - ./mysql/data:/var/lib/mysql
+      command: --default-authentication-plugin=mysql_native_password
+      environment:
+        MYSQL_ROOT_PASSWORD: rootpass
+        MYSQL_DATABASE: urls
+        MYSQL_USER: go
+        MYSQL_PASSWORD: gopass
+      healthcheck:
+       test: "mysql -h mysql -ugo -pgopass  -e ';'"
+      networks:
+        - urlsh
+      restart: always
 
     go:
       build: go
       image: go
+      container_name: go
       hostname: go
+      ports:
+        - 8080:8080
       depends_on:
-        - mysql
+        mysql:
+          condition: service_healthy
+      networks:
+        - urlsh
       restart: always
+
+networks:
+  urlsh:
+    {}

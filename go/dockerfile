@@ -1,11 +1,14 @@
 FROM golang:1.18-alpine
 
+RUN apk update && apk add mysql mysql-client
+
 WORKDIR /go/src
 
 COPY . /go/src
 RUN go env -w GO111MODULE=auto
-# RUN go mod init
 RUN go build -v -o $GOPATH/bin/url_shortener server.go resolve.go
 
+# COPY start.sh /usr/local/bin
+# CMD [ "start.sh" ]
 CMD [ "url_shortener" ]
 # CMD [ "sh" ]

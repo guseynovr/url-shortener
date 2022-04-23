@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -19,8 +20,9 @@ func init() {
 		User:   "go",
 		Passwd: "gopass",
 		Net:    "tcp",
-		Addr:   "127.0.0.1:3306",
+		Addr:   "mysql:3306",
 		DBName: "urls",
+		AllowNativePasswords: true,
 	}
 	db, err := sql.Open("mysql", cfg.FormatDSN())
 	if err != nil {
@@ -28,7 +30,7 @@ func init() {
 	}
 
 	if err := db.Ping(); err != nil {
-		log.Fatalf("Can't establish a connection to database at dataSourceName %v", cfg.FormatDSN())
+		log.Fatal(fmt.Errorf("%v: Can't establish a connection to database at dataSourceName %v", err, cfg.FormatDSN()))
 	}
 
 	st, err := db.Prepare("select * from urls where full = ?")
@@ -54,7 +56,6 @@ func (h dbHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("template.Execute:", err)
 	}
-	// http.ServeFile(w, r, "index.html")
 }
 
 func formResponse(params url.Values) string {
@@ -67,7 +68,6 @@ func formResponse(params url.Values) string {
 			return "Invalid URL"
 		}
 		err = h.st.QueryRow(u).Scan(&id, &full, &short)
-		// println("full", full, "short", short)
 		if err == sql.ErrNoRows {
 			log.Println("creating new short url")
 			short = newURL(u)
@@ -99,7 +99,6 @@ func validateURL(rawURL string) (string, error) {
 }
 
 func newURL(full string) string {
-	// println("full", full, "lastID", lastID)
 	if lastID == 0 {
 		row := h.db.QueryRow("SELECT COUNT(*) FROM urls;")
 		err := row.Scan(&lastID)
@@ -126,16 +125,12 @@ func newURL(full string) string {
 		//TODO: check error
 		log.Fatal(err)
 	}
-	println("lastID new:", lastID)
 	return short
 }
 
 func redirect(w http.ResponseWriter, r *http.Request) {
-	println(r.URL.Path)
 	short := path.Base(r.URL.Path)
-	println("1short:", short)
 	id := resolve(short)
-	println("short:", short, "id:", id)
 	row := h.db.QueryRow("select * from urls where id = ?", id)
 
 	var full string
@@ -146,7 +141,6 @@ func redirect(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		log.Fatal(err)
 	}
-	println(full)
 	http.Redirect(w, r, full, http.StatusMovedPermanently)
 }
 
