@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 
 	"github.com/go-sql-driver/mysql"
@@ -16,12 +17,24 @@ var h dbHandler
 var lastID int64
 
 func init() {
+	if _, ok := os.LookupEnv("MYSQL_USER"); !ok {
+		log.Fatalf("No env value for MYSQL_USER")
+	}
+	if _, ok := os.LookupEnv("MYSQL_PASSWORD"); !ok {
+		log.Fatalf("No env value for MYSQL_PASSWORD")
+	}
+	if _, ok := os.LookupEnv("MYSQL_DATABASE");  !ok {
+		log.Fatalf("No env value for MYSQL_DATABASE")
+	}
+	if _, ok := os.LookupEnv("DBHOST");  !ok {
+		log.Fatalf("No env value for DBHOST")
+	}
 	cfg := mysql.Config{
-		User:   "go",
-		Passwd: "gopass",
+		User:   os.Getenv("MYSQL_USER"), //"go",
+		Passwd: os.Getenv("MYSQL_PASSWORD") ,//"gopass",
 		Net:    "tcp",
-		Addr:   "mysql:3306",
-		DBName: "urls",
+		Addr:   os.Getenv("DBHOST") + ":3306", //"mysql:3306",
+		DBName: os.Getenv("MYSQL_DATABASE"), //"urls",
 		AllowNativePasswords: true,
 	}
 	db, err := sql.Open("mysql", cfg.FormatDSN())
@@ -65,7 +78,7 @@ func formResponse(params url.Values) string {
 		rawURL = params.Get("url")
 		u, err := validateURL(rawURL)
 		if err != nil {
-			return "Invalid URL"
+			return fmt.Sprint("Invalid URL: ", err.Error())
 		}
 		err = h.st.QueryRow(u).Scan(&id, &full, &short)
 		if err == sql.ErrNoRows {
@@ -83,6 +96,12 @@ func formResponse(params url.Values) string {
 }
 
 func validateURL(rawURL string) (string, error) {
+	if len(rawURL) == 0 {
+		return "", fmt.Errorf("URL empty")
+	}
+	if len(rawURL) > 2040 {
+		return "", fmt.Errorf("URL too long")
+	}
 	tempU, err := url.Parse(rawURL)
 	if err != nil {
 		log.Println(err)
@@ -103,14 +122,12 @@ func newURL(full string) string {
 		row := h.db.QueryRow("SELECT COUNT(*) FROM urls;")
 		err := row.Scan(&lastID)
 		if err != nil {
-			//TODO: check error
 			log.Fatal(err)
 		}
 	}
 	short := shorten(int(lastID + 1))
 	result, err := h.db.Exec("insert into urls (Full, Short) values (?, ?)", full, short)
 	if err != nil {
-		//TODO: check error
 		log.Fatal(err)
 	}
 	rows, err := result.RowsAffected()
@@ -122,7 +139,6 @@ func newURL(full string) string {
 	}
 	lastID, err = result.LastInsertId()
 	if err != nil {
-		//TODO: check error
 		log.Fatal(err)
 	}
 	return short
@@ -145,6 +161,8 @@ func redirect(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	log.Println("Starting server")
+
 	defer h.db.Close()
 	defer h.st.Close()
 
