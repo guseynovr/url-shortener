@@ -15,7 +15,7 @@ services:
         MYSQL_USER: $MYSQL_USER
         MYSQL_PASSWORD: $MYSQL_PASSWORD
       healthcheck:
-       test: "mysql -h mysql -ugo -pgopass  -e ';'"
+       test: "mysql -u$MYSQL_USER -p$MYSQL_PASSWORD -e ';'"
       networks:
         - urlsh
       restart: always
