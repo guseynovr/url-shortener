@@ -1,6 +1,6 @@
 # url-shortener
 
-A simple containerized service to transofrm any URL to a standart length link.
+A simple containerized server to transofrm any URL to a standart length link.
 
 <img width="409" alt="Screenshot 2022-04-24 at 22 14 55" src="https://user-images.githubusercontent.com/32015630/164992737-a5ebc5fb-3180-4cf2-a451-6aaafa713c1a.png">
 
